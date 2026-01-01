@@ -3,12 +3,21 @@ import logging
 from datetime import datetime
 from flask import Flask, request, jsonify
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from hardware import (
+    reset_usb_hub, 
+    reset_v4l2_driver, 
+    capture_both_cameras, 
+    resolve_camera_ports, 
+    is_invalid_image
+)
+
+from config import YUY
 
 
 @app.route('/printcheck', methods=['POST'])
 def printcheck():
     """
-    Endpoint to handle industrial image validation requests.
+    Endpoint to handle image validation requests.
     cmdCode 2: Poll processing status and handle retry logic.
     cmdCode 3: Initialize image capture and start asynchronous validation.
     """
@@ -81,7 +90,7 @@ def printcheck():
                 capture_config_meter = {"device_index": int(meterindex), "resolution": (2304, 1728), "rotation": meter_angle}
                 capture_config_nic = {"device_index": int(nicindex), "resolution": (2304, 1728), "rotation": nic_angle}
 
-                if YUY == 'True':
+                if YUY:
                     configure_camera(meterport, 500)
                     configure_camera(nicport, 500)
 
@@ -140,7 +149,7 @@ def printcheck():
             time.sleep(1.5)
 
             meterindex, nicindex = meterport[-1], nicport[-1]
-            if YUY == 'True':
+            if YUY:
                 configure_camera(meterport, 500)
                 configure_camera(nicport, 500)
             
