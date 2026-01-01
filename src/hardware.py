@@ -4,20 +4,8 @@ import subprocess
 import glob
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-
+from config import YUY, WIDTH, HEIGHT, usb_hub_location, usb_hub_ports, meter_physical_id, nic_physical_id
 # Configuration Constants (In production, these are derived from the CONFIG file, set as per best compatibility with hardware of that line)
-CONFIG = {
-    "YUY": True,
-    "WIDTH": 3264,
-    "HEIGHT": 2448,
-    "usb_hub_location": "1-1", 
-    "usb_hub_ports": [1, 2],
-    "meter_physical_id": "platform-3f980000.usb-usb-0:1.2:1.0",
-    "nic_physical_id": "platform-3f980000.usb-usb-0:1.3:1.0"
-}
-YUY = CONFIG.get("YUY", False)
-WIDTH = CONFIG.get("WIDTH", 3264)
-HEIGHT = CONFIG.get("HEIGHT", 2448)
 
 def capture_both_cameras(capture_config_meter, capture_config_nic):
     """Parallelized capture for dual camera setup."""
