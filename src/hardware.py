@@ -4,11 +4,17 @@ import subprocess
 import glob
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-from config import YUY, WIDTH, HEIGHT, usb_hub_location, usb_hub_ports, meter_physical_id, nic_physical_id
-# Configuration Constants (In production, these are derived from the CONFIG file, set as per best compatibility with hardware of that line)
+from config_loader import CONFIG  # Import the dynamic configuration singleton
 
-def capture_both_cameras(capture_config_meter, capture_config_nic):
-    """Parallelized capture for dual camera setup."""
+def capture_both_cameras(meter_port, nic_port):
+    """Parallelized capture for dual camera setup using resolved device nodes."""
+    # Fetch rotation settings from config
+    meter_rotation = CONFIG.get("METER_ROTATION", 0)
+    nic_rotation = CONFIG.get("NIC_ROTATION", 0)
+
+    capture_config_meter = {"device": meter_port, "rotation": meter_rotation}
+    capture_config_nic = {"device": nic_port, "rotation": nic_rotation}
+
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [
             executor.submit(capture_cam, capture_config_meter),
@@ -18,7 +24,8 @@ def capture_both_cameras(capture_config_meter, capture_config_nic):
         results = []
         for future in futures:
             try:
-                frame = future.result(timeout=15) # Extended timeout for slow YUYV fps
+                # 15s timeout to account for low FPS YUYV warm-up cycles
+                frame = future.result(timeout=15) 
                 results.append(frame)
             except Exception as e:
                 print(f"Capture Thread Error: {e}")
@@ -27,30 +34,33 @@ def capture_both_cameras(capture_config_meter, capture_config_nic):
     return results
 
 def capture_cam(cam_args):
-    """Routes to specific capture method based on global format setting."""
-    device = f"/dev/video{cam_args['device_index']}"
+    """Routes to specific capture method based on config format setting."""
+    device = cam_args['device']
     rotation = cam_args.get('rotation', 0)
     
-    if not YUY:
+    # Use config value for YUY_MODE (True/1 or False/0)
+    if not CONFIG.get("YUY_MODE"):
         return capture_mjpeg_image(device, rotation)
     return capture_yuyv_image(device, rotation)
 
 def capture_mjpeg_image(device, rotation):
     """High-speed MJPEG capture with sensor warm-up."""
+    width = CONFIG.get("WIDTH", 3264)
+    height = CONFIG.get("HEIGHT", 2448)
+
     subprocess.run([
         "v4l2-ctl", "-d", device,
-        f"--set-fmt-video=width={WIDTH},height={HEIGHT},pixelformat=MJPG"
+        f"--set-fmt-video=width={width},height={height},pixelformat=MJPG"
     ], capture_output=True)
 
     cap = cv2.VideoCapture(device, cv2.CAP_V4L2)
     if not cap.isOpened():
         raise RuntimeError(f"Could not open device {device}")
 
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc(*'MJPG'))
 
-    # Sensor warm-up
     for _ in range(10):
         cap.read()
         time.sleep(0.02)
@@ -64,10 +74,13 @@ def capture_mjpeg_image(device, rotation):
     return _rotate_frame(frame, rotation)
 
 def capture_yuyv_image(device, rotation):
-    """Reliable YUYV capture for high-fidelity signal (2 FPS throughput)."""
+    """Reliable YUYV capture for high-fidelity signal."""
+    width = CONFIG.get("WIDTH", 3264)
+    height = CONFIG.get("HEIGHT", 2448)
+
     subprocess.run([
         "v4l2-ctl", "-d", device,
-        f"--set-fmt-video=width={WIDTH},height={HEIGHT},pixelformat=YUYV"
+        f"--set-fmt-video=width={width},height={height},pixelformat=YUYV"
     ], capture_output=True)
     
     time.sleep(0.1)
@@ -75,16 +88,14 @@ def capture_yuyv_image(device, rotation):
     if not cap.isOpened():
         raise RuntimeError(f"Could not open device {device}")
 
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc(*'YUYV'))
 
-    # Warm up
     for _ in range(5):
         cap.read()
         time.sleep(0.75)
 
-    # Retry logic for frame acquisition
     frame = None
     for _ in range(3):
         ret, frame = cap.read()
@@ -99,7 +110,7 @@ def capture_yuyv_image(device, rotation):
     return _rotate_frame(frame, rotation)
 
 def _rotate_frame(frame, rotation):
-    """Helper for image orientation."""
+    """Helper for image orientation correction."""
     if rotation == 90:
         return cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
     if rotation == 180:
@@ -108,30 +119,27 @@ def _rotate_frame(frame, rotation):
         return cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
     return frame
 
-
 def reset_usb_hub():
-    """Power cycles the cameras using USB hub ports using uhubctl."""
-    hub_loc = CONFIG.get("usb_hub_location")
-    ports = CONFIG.get("usb_hub_ports", [])
+    """Power cycles cameras via uhubctl using config-defined hub/ports."""
+    hub_loc = CONFIG.get("USB_HUB_LOCATION")
+    ports = CONFIG.get("USB_HUB_PORTS", [])
 
     if not hub_loc or not ports:
         return
 
-    ports_str = ",".join(str(p) for p in ports) if isinstance(ports, list) else ports
+    ports_str = ",".join(str(p) for p in ports) if isinstance(ports, list) else str(ports)
 
     try:
-        # Action 2 = Power Off
         subprocess.run(["sudo", "uhubctl", "-l", hub_loc, "-p", ports_str, "-a", "2"], 
                        check=True, capture_output=True)
         time.sleep(1)
-        # Action 1 = Power On
         subprocess.run(["sudo", "uhubctl", "-l", hub_loc, "-p", ports_str, "-a", "1"], 
                        check=True, capture_output=True)
     except subprocess.CalledProcessError as e:
         print(f"USB Hub Reset Error: {e.stderr}")
 
 def reset_v4l2_driver():
-    """Performs a kernel-level reload of the uvcvideo driver."""
+    """Kernel-level reload of the uvcvideo driver."""
     try:
         subprocess.run("sudo modprobe -r uvcvideo", shell=True, check=True)
         time.sleep(1)
@@ -141,13 +149,14 @@ def reset_v4l2_driver():
     except subprocess.CalledProcessError:
         return False
 
-def is_invalid_image(img, black_threshold=0.99, pixel_threshold=10):
-    """
-    Checks if the frame is empty or effectively blank (sensor error).
-    Filters out frames where >99% of pixels are below the darkness threshold.
-    """
+def is_invalid_image(img):
+    """Validates frame integrity against sensor-level noise or black frames."""
     if img is None:
         return True
+    
+    black_threshold = CONFIG.get("BLACK_THRESHOLD", 0.99)
+    pixel_threshold = CONFIG.get("PIXEL_VAL_THRESHOLD", 10)
+
     try:
         gray = np.mean(img, axis=2) if len(img.shape) == 3 else img
         black_pixels = np.sum(gray <= pixel_threshold)
@@ -156,12 +165,9 @@ def is_invalid_image(img, black_threshold=0.99, pixel_threshold=10):
         return True
 
 def resolve_camera_ports():
-    """
-    Maps physical hardware ID_PATHs to /dev/video nodes.
-    Ensures persistent camera assignment regardless of OS enumeration order.
-    """
-    meter_id = CONFIG.get("meter_physical_id")
-    nic_id = CONFIG.get("nic_physical_id")
+    """Maps physical ID_PATHs to /dev/video nodes via udevadm."""
+    meter_id = CONFIG.get("METER_PHYSICAL_ID")
+    nic_id = CONFIG.get("NIC_PHYSICAL_ID")
     
     idpath_to_dev = {}
     for dev in glob.glob("/dev/video*"):
@@ -180,3 +186,14 @@ def resolve_camera_ports():
     nic_port = idpath_to_dev.get(nic_id, "/dev/video2")
     
     return meter_port, nic_port
+
+def configure_camera(device, exposure_val=500):
+    """Utility to set manual exposure values via v4l2-ctl."""
+    try:
+        subprocess.run([
+            "v4l2-ctl", "-d", device, 
+            "--set-ctrl=exposure_auto=1", 
+            f"--set-ctrl=exposure_absolute={exposure_val}"
+        ], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Exposure Config Error: {e}")
