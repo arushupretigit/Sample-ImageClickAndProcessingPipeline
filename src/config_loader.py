@@ -26,6 +26,8 @@ def load_config():
                             else:
                                 parsed.append(v)
                         value = parsed
+                    elif value.lower() in ("true", "false"):
+                        value = value.lower() == "true"
                     else:
                         if value.replace('.', '', 1).isdigit():
                             value = float(value) if '.' in value else int(value)
