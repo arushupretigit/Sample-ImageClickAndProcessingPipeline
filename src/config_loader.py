@@ -2,7 +2,7 @@ import os
 
 def load_config():
     """
-    Parses the hawk_settings.conf from the standard Linux config path.
+    Parses the hawk_settings.conf file present in the expected path.
     Converts numeric strings to floats/ints and comma-separated strings to lists.
     """
     config_data = {}
