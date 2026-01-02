@@ -4,7 +4,7 @@ import subprocess
 import glob
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-from config_loader import CONFIG  # Import the dynamic configuration singleton
+from config_loader import CONFIG  
 
 def capture_both_cameras(meter_port, nic_port):
     """Parallelized capture for dual camera setup using resolved device nodes."""
