@@ -40,7 +40,6 @@ def process_images(meter_img, nic_img, data):
         future_mqr = pool.submit(validate_qr_code, meter_img, check_limits=True)
         future_ocr = pool.submit(perform_meter_ocr, meter_img)
 
-        # blocking until all are finished or timeout
         try:
             logo_res = future_logos.result()
             pos_res = future_pos.result()
