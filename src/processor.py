@@ -28,6 +28,7 @@ def process_images(meter_img, nic_img, data):
     concurrently to minimize cycle time on the production line.
     """
     cmd_code = data["header"]["cmdCode"]
+    #Ideal Artwork file is saved by another software into a specific location, to ensure correct artwork file is loaded for comparison
     artwork = data["data"].get("idealArtworkPath")
     imgs = (meter_img, nic_img)
 
