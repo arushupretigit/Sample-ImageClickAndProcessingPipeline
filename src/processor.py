@@ -1,5 +1,5 @@
 import concurrent.futures
-from vision_yolo import check_nic_logos, check_nic_position
+from vision_logo import check_nic_logos, check_nic_position
 from vision_qr import validate_qr_code
 from vision_ocr import perform_meter_ocr
 
