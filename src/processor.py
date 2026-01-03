@@ -3,7 +3,7 @@ from vision_logo import check_nic_logos, check_nic_position
 from vision_qr import validate_qr_code
 from vision_ocr import perform_meter_ocr
 
-def _build_response(cmd_code, success=False, logos=True, pos=True, n_qr=True, m_qr=True, ocr=True, reason="", data=None, imgs=None):
+def _build_response(cmd_code, success=False, logos=True, pos=True, n_qr=True, m_qr=True, ocr=True, reason="", data=None):
     """Consistent response schema for handshake."""
     return {
         "header": {"cmdCode": cmd_code},
@@ -16,9 +16,7 @@ def _build_response(cmd_code, success=False, logos=True, pos=True, n_qr=True, m_
             "meter_ocr": ocr,
             "template_passed": success,
             "reason": reason,
-            "original_data": data,
-            "meter_img": imgs[0] if imgs else None,
-            "nic_img": imgs[1] if imgs else None
+            "original_data": data
         }
     }
 
@@ -48,27 +46,27 @@ def process_images(meter_img, nic_img, data):
             mqr_res = future_mqr.result()
             ocr_res = future_ocr.result()
         except Exception as e:
-            return _build_response(cmd_code, success=False, reason=f"Inference Engine Error: {str(e)}", data=data, imgs=imgs)
+            return _build_response(cmd_code, success=False, reason=f"Inference Engine Error: {str(e)}", data=data)
     
     # 1. Logo Check
     if logo_res.get("status") != "PASS":
-        return _build_response(cmd_code, logos=False, reason=f"Logo: {logo_res.get('error')}", data=data, imgs=imgs)
+        return _build_response(cmd_code, logos=False, reason=f"Logo: {logo_res.get('error')}", data=data)
 
     # 2. Position Check
     if pos_res.get("status") != "PASS":
-        return _build_response(cmd_code, pos=False, reason=f"Position: {pos_res.get('error')}", data=data, imgs=imgs)
+        return _build_response(cmd_code, pos=False, reason=f"Position: {pos_res.get('error')}", data=data)
 
     # 3. NIC QR Check
     if nqr_res.get("error") or not nqr_res.get("codes"):
-        return _build_response(cmd_code, n_qr=False, reason="NIC QR unreadable", data=data, imgs=imgs)
+        return _build_response(cmd_code, n_qr=False, reason="NIC QR unreadable", data=data)
 
     # 4. Meter QR Check
     if mqr_res.get("error") or not mqr_res.get("codes") or not mqr_res.get("position_ok"):
-        return _build_response(cmd_code, m_qr=False, reason="Meter QR invalid/out of bounds", data=data, imgs=imgs)
+        return _build_response(cmd_code, m_qr=False, reason="Meter QR invalid/out of bounds", data=data)
 
     # 5. OCR Check
     if ocr_res.get("status") != "PASS":
-        return _build_response(cmd_code, ocr=False, reason=f"OCR: {ocr_res.get('error')}", data=data, imgs=imgs)
+        return _build_response(cmd_code, ocr=False, reason=f"OCR: {ocr_res.get('error')}", data=data)
 
     # All checks passed
-    return _build_response(cmd_code, success=True, data=data, imgs=imgs)
+    return _build_response(cmd_code, success=True, data=data)
