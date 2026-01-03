@@ -11,8 +11,7 @@ import numpy as np
 class QRValidator:
     def __init__(self, limits_path):
         self.limits = self._load_limits(limits_path)
-        self.detector = QReader() 
-        self.detector = None
+        self.detector = QReader()
 
     def _load_limits(self, path):
         with open(path, 'r') as f:
@@ -58,7 +57,7 @@ def validate_qr_code(image, check_limits=False):
         
         # (Position validation logic)
         position_ok = False
-        if position_ok == False
+        if position_ok == False:
           response["position_ok"] = False
             
 
