@@ -1,8 +1,8 @@
 # Production-Grade Image Processing Pipeline (Sample Repository)
 
-This repository demonstrates a **production-ready image processing pipeline** designed for real-world manufacturing / inspection environments.
+This repository demonstrates a **production-ready image processing pipeline** designed for real-world manufacturing & inspection environments.
 
-The focus is not on model accuracy alone, but on **system stability, fault tolerance, and cycle-time optimization** — the things that matter on an actual production line.
+The focus is on **system stability, fault tolerance, and cycle-time optimization** — critical for production.
 
 ---
 
@@ -14,8 +14,6 @@ At a high level, the pipeline:
 2. Applies **hardware-aware recovery** if capture fails
 3. Runs multiple **computer vision checks in parallel**
 4. Returns a **deterministic, machine-friendly result** suitable for PLCs or MES systems
-
-The code is structured to reflect how such systems are deployed and maintained in production.
 
 ---
 
@@ -97,7 +95,7 @@ Reduces manual intervention and avoids unnecessary line stops.
 
 All environment-specific behavior is externalized:
 
-- Camera IDs
+- Camera port IDs
 - Image resolution
 - Rotation
 - Capture mode (MJPEG / YUYV)
@@ -123,16 +121,16 @@ Easy to integrate with existing automation systems or HMI software.
 
 ## Repository Structure
 config/
-└── hawk_settings.conf # Deployment-specific configuration
+- hawk_settings.conf # Deployment-specific configuration
 
 src/
-├── app.py # API + orchestration
-├── hardware.py # Camera control and recovery
-├── processor.py # Parallel vision pipeline
-├── vision_logo.py # Logo detection and position checks
-├── vision_qr.py # QR code validation
-├── vision_ocr.py # OCR pipeline
-└── config_loader.py # Config parser and singleton
+- app.py # API + orchestration
+- hardware.py # Camera control and recovery
+- processor.py # Parallel vision pipeline
+- vision_logo.py # Logo detection and position checks
+- vision_qr.py # QR code validation
+- vision_ocr.py # OCR pipeline
+- config_loader.py # Config parser and singleton
 
 ---
 
