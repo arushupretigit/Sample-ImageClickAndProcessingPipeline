@@ -4,6 +4,8 @@ Proprietary text validation logic and serial format matching are abstracted.
 """
 
 import json
+from paddleocr import PaddleOCR
+
 
 class OCR:
     def __init__(self, limits_path):
