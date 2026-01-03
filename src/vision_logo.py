@@ -62,4 +62,4 @@ def check_nic_position(image, artwork_id):
             if not (limit['x_range'][0] <= x_min <= limit['x_range'][1]):
                 return {"status": "FAIL", "error": f"Position mismatch: {lbl}"}
                 
-    return {"status": "PASS"}
+    return {"status": "PASS", "error": None}
